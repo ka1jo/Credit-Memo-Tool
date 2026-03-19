@@ -50,6 +50,10 @@ pip install -r requirements.txt
 
 Create a .env file in the project root:
 
+text for file :
+
+OPENAI_API_KEY=sk-your_openai_api_key_here
+
 5. **Run the application**
 
 streamlit run main.py
