@@ -54,6 +54,8 @@ text for file :
 
 OPENAI_API_KEY=sk-your_openai_api_key_here
 
+!! MAKE SURE YOU .env FILE IS NOT TXT TYPE
+ 
 5. **Run the application**
 
 streamlit run main.py
