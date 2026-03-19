@@ -1,57 +1,55 @@
+import os
 import streamlit as st
 from openai import OpenAI
-import os
 from dotenv import load_dotenv
 
-# --- Load environment variables from .env file ---
-load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY")  # API key is stored in .env for security
+# --- Load .env explicitly ---
+load_dotenv(dotenv_path=".env")  # гарантируем загрузку из корня проекта
+
+# --- Get OpenAI API key ---
+api_key = os.getenv("OPENAI_API_KEY")
+
+# --- Check if API key is loaded ---
+if not api_key:
+    st.error("OpenAI API key not found. Please create a .env file in the project root with your key.")
+    st.stop()
+
+# --- Create OpenAI client ---
 client = OpenAI(api_key=api_key)
 
-# --- Page Title (centered) ---
+# --- App title ---
 st.markdown("<h1 style='text-align: center;'>Credit Memo Tool</h1>", unsafe_allow_html=True)
 
-# --- User Input Form ---
+# --- INPUT FORM ---
 company = st.text_input("Company name")
-
 revenue = st.number_input(
     "Annual revenue (EUR)",
-    min_value=0.0,
-    max_value=100_000_000.0,
-    value=100_000.0,
-    step=1000.0
+    min_value=0,
+    max_value=100_000_000,
+    value=100_000,
+    step=1000
 )
-
 loan_amount = st.number_input(
     "Loan amount (EUR)",
-    min_value=0.0,
-    max_value=50_000_000.0,
-    value=10_000.0,
-    step=1000.0
+    min_value=0,
+    max_value=50_000_000,
+    value=10_000,
+    step=1000
 )
-
 years_in_business = st.number_input(
     "Years in business",
-    min_value=0.01,   # Minimum 0.01 years (~3.5 days)
+    min_value=0.01,
     max_value=100.0,
     value=1.0,
     step=0.1
 )
-
 existing_debt = st.selectbox("Existing debt level", ["Low", "Medium", "High"])
 
-# --- Risk Calculation Function ---
+# --- Risk calculation function ---
 def calculate_risk(revenue, loan_amount, years, debt):
-    """
-    Calculates the risk level and numeric score for a loan application.
-    Factors:
-    - Loan amount vs revenue
-    - Years in business
-    - Existing debt
-    - Old, low-revenue business gets additional risk
-    """
+    # HARD STOP
     if revenue <= 0 or years <= 0:
-        return "High", 200  # Hard stop if invalid input
+        return "High", 200
 
     score = 0
     ratio = loan_amount / revenue
@@ -64,7 +62,7 @@ def calculate_risk(revenue, loan_amount, years, debt):
     else:
         score += 60
 
-    # Years in Business
+    # Years in business
     if years > 5:
         score += 10
     elif years > 2:
@@ -80,11 +78,11 @@ def calculate_risk(revenue, loan_amount, years, debt):
     else:
         score += 60
 
-    # Additional risk for old low-revenue businesses
+    # Old, low-revenue business adjustment
     if years > 20 and revenue < 50_000:
         score += 20
 
-    # Classify risk
+    # Classification
     if score <= 40:
         return "Low", score
     elif score <= 90:
@@ -92,29 +90,26 @@ def calculate_risk(revenue, loan_amount, years, debt):
     else:
         return "High", score
 
-# --- Button: Generate Credit Memo ---
+# --- Button to generate Credit Memo ---
 if st.button("Generate Credit Memo"):
-
-    # --- Input validation ---
+    # Input validation
     if not company.strip():
-        st.error("Please enter a company name.")
+        st.error("Please enter company name.")
     elif revenue <= 0:
-        st.error("Annual revenue must be greater than 0.")
+        st.error("Annual revenue must be more than 0.")
     elif loan_amount <= 0:
-        st.error("Loan amount must be greater than 0.")
-    elif years_in_business < 0.01:
+        st.error("Loan amount must be more than 0.")
+    elif years_in_business <= 0:
         st.error("Years in business must be greater than 0.")
     else:
         # --- Calculate risk ---
-        risk_level, risk_score = calculate_risk(
-            revenue, loan_amount, years_in_business, existing_debt
-        )
+        risk_level, risk_score = calculate_risk(revenue, loan_amount, years_in_business, existing_debt)
 
-        st.write(f"Calculated Risk Level: **{risk_level}**")
+        st.write(f"Calculated Risk Level: {risk_level}")
         st.write(f"Risk Score: {risk_score}")
 
-        # --- Prepare prompt for OpenAI GPT ---
-        prompt_text = f"""
+        # --- Prepare prompt for OpenAI ---
+        prompt = f"""
         You are a senior credit analyst.
 
         Create a professional credit memo including:
@@ -133,17 +128,13 @@ if st.button("Generate Credit Memo"):
         Risk Score: {risk_score}
         """
 
-        # Ensure prompt is Unicode-safe
-        prompt_text = str(prompt_text)
-
         try:
             response = client.chat.completions.create(
                 model="gpt-4.1",
-                messages=[{"role": "user", "content": prompt_text}]
+                messages=[{"role": "user", "content": prompt}]
             )
 
             memo = response.choices[0].message.content
-
             st.subheader("Generated Credit Memo")
             st.write(memo)
 
